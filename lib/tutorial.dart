@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -6,9 +7,9 @@ import 'chip/card_reader.dart';
 import 'chip/pcsc.dart';
 import 'i18n.dart';
 
-/// Black & white tutorial photo (generated with Stitch), gently animated:
-/// the douchette reading the MRZ ([chip] false), or the card being laid on
-/// the contactless reader, fading into the card at rest with the LED on.
+/// Tutorial illustration (layers drawn with Stitch, animated here): the
+/// douchette sweeping its laser over the MRZ ([chip] false), or the card
+/// laid onto the contactless reader, LED and waves lighting up.
 class TutorialAnimation extends StatefulWidget {
   const TutorialAnimation({super.key, required this.chip});
   final bool chip;
@@ -17,7 +18,10 @@ class TutorialAnimation extends StatefulWidget {
 }
 
 class _TutorialAnimationState extends State<TutorialAnimation> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat(reverse: true);
+  late final _c = AnimationController(
+    vsync: this,
+    duration: Duration(milliseconds: widget.chip ? 3200 : 2400),
+  )..repeat();
 
   @override
   void dispose() {
@@ -25,30 +29,151 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
     super.dispose();
   }
 
-  Widget _photo(String name) => Image.asset('assets/tutorial/$name.jpg', fit: BoxFit.cover, width: 360, height: 260);
-
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(16),
-    child: AnimatedBuilder(
-      animation: _c,
-      builder: (_, child) {
-        final t = Curves.easeInOut.transform(_c.value);
-        return Transform.scale(
-          scale: 1 + t * .06,
-          child: widget.chip
-              ? Stack(
-                  children: [
-                    _photo('place'),
-                    Opacity(opacity: t, child: _photo('success')),
-                  ],
-                )
-              : child,
-        );
-      },
-      child: _photo('scan'),
+  Widget build(BuildContext context) => SizedBox(
+    width: 360,
+    height: 260,
+    child: ClipRect(
+      child: AnimatedBuilder(animation: _c, builder: (_, _) => widget.chip ? _chip(_c.value) : _scan(_c.value)),
     ),
   );
+
+  static Widget _img(String n, double w) => Image.asset('assets/tutorial/$n.png', width: w);
+
+  // Card 220×162; MRZ band = 70–93 % of its height.
+  static const _card = Rect.fromLTWH(30, 92, 220, 162);
+
+  Widget _scan(double t) {
+    final sweep = Curves.easeInOut.transform(t < .5 ? t * 2 : 2 - t * 2);
+    final bob = sin(t * 2 * pi) * 3;
+    final window = Offset(186, 86 + bob); // scan window of the rotated douchette
+    final mrzTop = _card.top + _card.height * .70, mrzBottom = _card.top + _card.height * .93;
+    final y = mrzTop + (mrzBottom - mrzTop) * sweep;
+    return Stack(
+      children: [
+        Positioned.fromRect(rect: _card, child: _img('card', _card.width)),
+        Positioned.fill(child: CustomPaint(painter: _LaserPainter(window, _card.left + 8, _card.right - 8, y))),
+        Positioned(
+          left: 176,
+          top: -20 + bob,
+          child: Transform.rotate(angle: -1.15, child: _img('scanner', 130)),
+        ),
+      ],
+    );
+  }
+
+  Widget _chip(double t) {
+    const reader = Rect.fromLTWH(114, 10, 132, 231);
+    final drop = Curves.easeInOutCubic.transform((t / .35).clamp(0, 1));
+    final reading = t > .38 && t < .9;
+    final fade = t > .9 ? 1 - (t - .9) / .1 : 1.0;
+    const rest = Offset(80, 92);
+    final pos = Offset.lerp(const Offset(80, -110), rest, drop)!;
+    final lift = 1 - drop; // 1 = in the air
+    return Stack(
+      children: [
+        Positioned.fromRect(rect: reader, child: _img('reader', reader.width)),
+        // LED: grey until the card is down, then glowing green.
+        Positioned(
+          left: reader.left + reader.width * .424 - 7,
+          top: reader.top + reader.height * .262 - 7,
+          child: Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: reading ? const Color(0xFF4CAF50) : const Color(0xFF5F6368),
+              boxShadow: [if (reading) const BoxShadow(color: Color(0xFF69F0AE), blurRadius: 14, spreadRadius: 3)],
+            ),
+          ),
+        ),
+        if (reading)
+          Positioned.fill(child: CustomPaint(painter: _WavesPainter(rest + const Offset(100, 74), (t - .38) / .52))),
+        Opacity(
+          opacity: fade,
+          child: Stack(
+            children: [
+              // Shadow on the reader, further away while the card is lifted.
+              Positioned(
+                left: pos.dx + 6 + lift * 10,
+                top: pos.dy + 8 + lift * 30,
+                child: Container(
+                  width: 200,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: .3 - lift * .22),
+                        blurRadius: 10 + lift * 24,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: pos.dx,
+                top: pos.dy,
+                child: Transform.scale(scale: 1 + lift * .12, child: _img('card', 200)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LaserPainter extends CustomPainter {
+  _LaserPainter(this.from, this.left, this.right, this.y);
+  final Offset from;
+  final double left, right, y;
+
+  @override
+  void paint(Canvas c, Size s) {
+    final fan = Path()
+      ..moveTo(from.dx - 6, from.dy)
+      ..lineTo(left, y)
+      ..lineTo(right, y)
+      ..lineTo(from.dx + 6, from.dy)
+      ..close();
+    c.drawPath(fan, Paint()..color = const Color(0x22FF1744));
+    c.drawLine(
+      Offset(left, y),
+      Offset(right, y),
+      Paint()
+        ..color = const Color(0xFFFF1744)
+        ..strokeWidth = 2.5
+        ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_LaserPainter old) => old.y != y || old.from != from;
+}
+
+class _WavesPainter extends CustomPainter {
+  _WavesPainter(this.center, this.t);
+  final Offset center;
+  final double t;
+
+  @override
+  void paint(Canvas c, Size s) {
+    for (var i = 0; i < 2; i++) {
+      final k = (t * 2 + i / 2) % 1;
+      c.drawCircle(
+        center,
+        110 + k * 40,
+        Paint()
+          ..color = const Color(0xFF2E7D32).withValues(alpha: (1 - k) * .6)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WavesPainter old) => old.t != t;
 }
 
 /// "Lay the card on the reader" popup: keeps trying [read] until the chip
