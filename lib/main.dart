@@ -11,9 +11,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import 'chip/card_reader.dart';
-import 'chip/pcsc.dart';
 import 'country_resolver.dart';
 import 'i18n.dart';
+import 'tutorial.dart';
 import 'mrz/mrz_parser.dart';
 import 'mrz/scan_dialog.dart';
 
@@ -61,7 +61,6 @@ class _HomePageState extends State<HomePage> {
   final _docFocus = FocusNode();
   Timer? _scanPause;
   DateTime? _birth, _expiry;
-  bool _busy = false;
   String? _error;
   CardData? _card;
 
@@ -73,26 +72,17 @@ class _HomePageState extends State<HomePage> {
     }
     final birth = _iso(_birth!), expiry = _iso(_expiry!);
     setState(() {
-      _busy = true;
       _error = null;
       _card = null;
     });
-    try {
-      // A hung macOS/Windows smart card service never returns: give up
-      // instead of spinning forever (the stuck isolate dies with the app).
-      final card = await _readInBackground(docNo, birth, expiry)
-          .timeout(const Duration(seconds: 45));
-      setState(() => _card = card);
-    } on TimeoutException {
-      setState(() => _error = tr('Le lecteur ne répond pas : retirez la carte, réinsérez-la et réessayez.'));
-    } on PcscException catch (e) {
-      setState(() => _error = tr(e.message));
-    } catch (e) {
-      setState(() => _error = '${tr('Lecture impossible : posez la carte sur le lecteur et réessayez.')}\n($e)');
-    } finally {
-      setState(() => _busy = false);
-      _docFocus.requestFocus();
-    }
+    // The popup shows how to lay the card and retries until the chip answers.
+    // A hung macOS/Windows smart card service never returns: each attempt
+    // gives up after 45 s (the stuck isolate dies with the app).
+    final card = await showChipReadDialog(
+        context, () => _readInBackground(docNo, birth, expiry).timeout(const Duration(seconds: 45)));
+    if (!mounted) return;
+    if (card != null) setState(() => _card = card);
+    _docFocus.requestFocus();
   }
 
   /// Fills the three fields from a douchette scan, then reads the chip
@@ -216,7 +206,7 @@ class _HomePageState extends State<HomePage> {
             style: const TextStyle(fontSize: 16)),
         const SizedBox(height: 24),
         _BubbleButton(
-          onPressed: _busy ? null : _scan,
+          onPressed: _scan,
           icon: const Icon(Icons.document_scanner, size: 28, color: Colors.white),
           label: tr('Scanner la carte'),
         ),
@@ -227,11 +217,9 @@ class _HomePageState extends State<HomePage> {
         _dateField('Date d\'expiration', _expiry, DateTime(2000), DateTime(DateTime.now().year + 20),
             DateTime.now(), (d) => _expiry = d),
         _BubbleButton(
-          onPressed: _busy ? null : _read,
-          icon: _busy
-              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))
-              : const Icon(Icons.contactless, size: 28, color: Colors.white),
-          label: tr(_busy ? 'Lecture en cours…' : 'Lire la carte'),
+          onPressed: _read,
+          icon: const Icon(Icons.contactless, size: 28, color: Colors.white),
+          label: tr('Lire la carte'),
         ),
         const SizedBox(height: 12),
         _BubbleButton(

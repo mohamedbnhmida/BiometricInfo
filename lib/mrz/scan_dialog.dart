@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../i18n.dart';
+import '../tutorial.dart';
 import 'mrz_parser.dart';
 
 /// Waits for one MRZ from a douchette (keyboard wedge typing into a hidden
@@ -102,7 +103,7 @@ class _MrzScanDialogState extends State<_MrzScanDialog> {
                   ),
                 ),
               ),
-              const Icon(Icons.document_scanner, size: 80, color: Color(0xFF1565C0)),
+              const TutorialAnimation(chip: false),
               const SizedBox(height: 24),
               Text(tr('En attente du scan…'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
