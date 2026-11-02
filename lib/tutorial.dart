@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -50,9 +49,7 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
     return Stack(
       children: [
         Positioned.fromRect(rect: _card, child: _img('card', _card.width)),
-        Positioned.fill(
-          child: CustomPaint(painter: _LaserPainter(const Offset(180, 8), _card.left + 10, _card.right - 10, y)),
-        ),
+        Positioned.fill(child: CustomPaint(painter: _LaserPainter(_card.left + 10, _card.right - 10, y))),
       ],
     );
   }
@@ -117,33 +114,20 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
   }
 }
 
-/// Red laser fan from [from] down to a line across the MRZ at [y].
+/// Red laser line across the MRZ at [y].
 class _LaserPainter extends CustomPainter {
-  _LaserPainter(this.from, this.left, this.right, this.y);
-  final Offset from;
+  _LaserPainter(this.left, this.right, this.y);
   final double left, right, y;
 
   @override
-  void paint(Canvas c, Size s) {
-    final fan = Path()
-      ..moveTo(from.dx, from.dy)
-      ..lineTo(left, y)
-      ..lineTo(right, y)
-      ..close();
-    c.drawPath(
-      fan,
-      Paint()
-        ..shader = ui.Gradient.linear(from, Offset(from.dx, y), [const Color(0x00FF1744), const Color(0x44FF1744)]),
-    );
-    c.drawLine(
-      Offset(left, y),
-      Offset(right, y),
-      Paint()
-        ..color = const Color(0xFFFF1744)
-        ..strokeWidth = 2.5
-        ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
-    );
-  }
+  void paint(Canvas c, Size s) => c.drawLine(
+    Offset(left, y),
+    Offset(right, y),
+    Paint()
+      ..color = const Color(0xFFFF1744)
+      ..strokeWidth = 2.5
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
+  );
 
   @override
   bool shouldRepaint(_LaserPainter old) => old.y != y;
