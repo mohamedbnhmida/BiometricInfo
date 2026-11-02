@@ -49,7 +49,7 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
     return Stack(
       children: [
         Positioned.fromRect(rect: _card, child: _img('card', _card.width)),
-        Positioned.fill(child: CustomPaint(painter: _LaserPainter(_card.left + 10, _card.right - 10, y))),
+        Positioned.fill(child: CustomPaint(painter: _LaserPainter(_card.left - 28, _card.right + 28, y))),
       ],
     );
   }
