@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -39,28 +40,29 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
 
   static Widget _img(String n, double w) => Image.asset('assets/tutorial/$n.png', width: w);
 
-  // Card on the left, douchette on its right aiming at the MRZ band (70–93 % of the card height).
-  static const _card = Rect.fromLTWH(8, 60, 220, 162);
+  // Card centred under the laser; MRZ band = 70–90 % of its height.
+  static const _card = Rect.fromLTWH(60, 92, 240, 157);
 
   Widget _scan(double t) {
     final sweep = Curves.easeInOut.transform(t < .5 ? t * 2 : 2 - t * 2);
-    final mrzTop = _card.top + _card.height * .70, mrzBottom = _card.top + _card.height * .93;
+    final mrzTop = _card.top + _card.height * .70, mrzBottom = _card.top + _card.height * .90;
     final y = mrzTop + (mrzBottom - mrzTop) * sweep;
     return Stack(
       children: [
         Positioned.fromRect(rect: _card, child: _img('card', _card.width)),
-        Positioned.fill(child: CustomPaint(painter: _LaserPainter(_card.left + 8, _card.right - 8, y))),
-        Positioned(left: 230, top: 84, child: Transform.rotate(angle: -.35, child: _img('scanner', 116))),
+        Positioned.fill(
+          child: CustomPaint(painter: _LaserPainter(const Offset(180, 8), _card.left + 10, _card.right - 10, y)),
+        ),
       ],
     );
   }
 
   Widget _chip(double t) {
-    const reader = Rect.fromLTWH(114, 10, 132, 231);
+    const reader = Rect.fromLTWH(121, 10, 118, 231);
     final drop = Curves.easeInOutCubic.transform((t / .35).clamp(0, 1));
     final reading = t > .38 && t < .9;
     final fade = t > .9 ? 1 - (t - .9) / .1 : 1.0;
-    const rest = Offset(80, 92);
+    const rest = Offset(80, 100);
     final pos = Offset.lerp(const Offset(80, -110), rest, drop)!;
     final lift = 1 - drop; // 1 = in the air
     return Stack(
@@ -68,8 +70,8 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
         Positioned.fromRect(rect: reader, child: _img('reader', reader.width)),
         // LED: grey until the card is down, then glowing green.
         Positioned(
-          left: reader.left + reader.width * .424 - 7,
-          top: reader.top + reader.height * .262 - 7,
+          left: reader.left + reader.width * .498 - 7,
+          top: reader.top + reader.height * .278 - 7,
           child: Container(
             width: 14,
             height: 14,
@@ -90,7 +92,7 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
                 top: pos.dy + 8 + lift * 30,
                 child: Container(
                   width: 200,
-                  height: 140,
+                  height: 131,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
@@ -115,19 +117,33 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
   }
 }
 
+/// Red laser fan from [from] down to a line across the MRZ at [y].
 class _LaserPainter extends CustomPainter {
-  _LaserPainter(this.left, this.right, this.y);
+  _LaserPainter(this.from, this.left, this.right, this.y);
+  final Offset from;
   final double left, right, y;
 
   @override
-  void paint(Canvas c, Size s) => c.drawLine(
-    Offset(left, y),
-    Offset(right, y),
-    Paint()
-      ..color = const Color(0xFFFF1744)
-      ..strokeWidth = 2.5
-      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
-  );
+  void paint(Canvas c, Size s) {
+    final fan = Path()
+      ..moveTo(from.dx, from.dy)
+      ..lineTo(left, y)
+      ..lineTo(right, y)
+      ..close();
+    c.drawPath(
+      fan,
+      Paint()
+        ..shader = ui.Gradient.linear(from, Offset(from.dx, y), [const Color(0x00FF1744), const Color(0x44FF1744)]),
+    );
+    c.drawLine(
+      Offset(left, y),
+      Offset(right, y),
+      Paint()
+        ..color = const Color(0xFFFF1744)
+        ..strokeWidth = 2.5
+        ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
+    );
+  }
 
   @override
   bool shouldRepaint(_LaserPainter old) => old.y != y;
