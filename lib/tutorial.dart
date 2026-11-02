@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -7,8 +6,9 @@ import 'chip/card_reader.dart';
 import 'chip/pcsc.dart';
 import 'i18n.dart';
 
-/// Black & white looping illustration: a douchette reading the MRZ
-/// ([chip] false) or the card laid on the contactless reader ([chip] true).
+/// Black & white tutorial photo (generated with Stitch), gently animated:
+/// the douchette reading the MRZ ([chip] false), or the card being laid on
+/// the contactless reader, fading into the card at rest with the LED on.
 class TutorialAnimation extends StatefulWidget {
   const TutorialAnimation({super.key, required this.chip});
   final bool chip;
@@ -17,7 +17,7 @@ class TutorialAnimation extends StatefulWidget {
 }
 
 class _TutorialAnimationState extends State<TutorialAnimation> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat();
+  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat(reverse: true);
 
   @override
   void dispose() {
@@ -25,169 +25,30 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
     super.dispose();
   }
 
+  Widget _photo(String name) => Image.asset('assets/tutorial/$name.jpg', fit: BoxFit.cover, width: 360, height: 260);
+
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 360,
-    height: 220,
-    child: ClipRect(
-      child: AnimatedBuilder(
-        animation: _c,
-        builder: (_, _) => CustomPaint(painter: widget.chip ? _ChipPainter(_c.value) : _ScanPainter(_c.value)),
-      ),
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(16),
+    child: AnimatedBuilder(
+      animation: _c,
+      builder: (_, child) {
+        final t = Curves.easeInOut.transform(_c.value);
+        return Transform.scale(
+          scale: 1 + t * .06,
+          child: widget.chip
+              ? Stack(
+                  children: [
+                    _photo('place'),
+                    Opacity(opacity: t, child: _photo('success')),
+                  ],
+                )
+              : child,
+        );
+      },
+      child: _photo('scan'),
     ),
   );
-}
-
-final _ink = Paint()
-  ..color = Colors.black
-  ..style = PaintingStyle.stroke
-  ..strokeWidth = 3
-  ..strokeJoin = StrokeJoin.round;
-final _white = Paint()..color = Colors.white;
-final _black = Paint()..color = Colors.black;
-final _grey = Paint()..color = const Color(0xFFBDBDBD);
-
-/// ID card seen from above, MRZ band at the bottom; [mrzLit] = MRZ rows
-/// already read (drawn black instead of grey).
-void _card(Canvas c, Rect r, {double mrzLit = 0}) {
-  final rr = RRect.fromRectAndRadius(r, const Radius.circular(12));
-  c.drawRRect(rr, _white);
-  c.drawRRect(rr, _ink);
-  final u = r.width / 20;
-  c.drawRRect(RRect.fromLTRBR(r.left + u, r.top + u, r.left + 5 * u, r.top + 6.5 * u, const Radius.circular(4)), _grey);
-  c.drawCircle(Offset(r.left + 3 * u, r.top + 3 * u), u * .9, _white);
-  for (var i = 0; i < 3; i++) {
-    c.drawRRect(
-      RRect.fromLTRBR(
-        r.left + 6 * u,
-        r.top + (1.4 + i * 1.6) * u,
-        r.right - (i == 1 ? 6 : 2) * u,
-        r.top + (2.2 + i * 1.6) * u,
-        const Radius.circular(3),
-      ),
-      _grey,
-    );
-  }
-  // MRZ: three rows of "<<<" blocks.
-  for (var row = 0; row < 3; row++) {
-    final y = r.bottom - (3.4 - row * 1.05) * u;
-    final p = row < mrzLit ? _black : _grey;
-    for (var x = r.left + u; x < r.right - u * 1.2; x += u * .62) {
-      c.drawRect(Rect.fromLTWH(x, y, u * .42, u * .62), p);
-    }
-  }
-}
-
-class _ScanPainter extends CustomPainter {
-  _ScanPainter(this.t);
-  final double t;
-
-  @override
-  void paint(Canvas c, Size s) {
-    final card = Rect.fromLTWH(s.width * .18, s.height * .38, s.width * .64, s.height * .58);
-    final u = card.width / 20;
-    // Beam sweeps down then up over the three MRZ rows.
-    final sweep = t < .5 ? t * 2 : 2 - t * 2;
-    final top = card.bottom - 3.6 * u, bottom = card.bottom - .6 * u;
-    final beamY = top + (bottom - top) * sweep;
-    _card(c, card, mrzLit: sweep * 3.2);
-
-    // Douchette above the card, pointing down, slight bob.
-    final head = Offset(s.width / 2, 34 + sin(t * 2 * pi) * 3);
-    final beam = Path()
-      ..moveTo(head.dx - 10, head.dy + 34)
-      ..lineTo(card.left + u * .6, beamY)
-      ..lineTo(card.right - u * .6, beamY)
-      ..lineTo(head.dx + 10, head.dy + 34)
-      ..close();
-    c.drawPath(beam, Paint()..color = Colors.black.withAlpha(28));
-    c.drawLine(
-      Offset(card.left + u * .6, beamY),
-      Offset(card.right - u * .6, beamY),
-      Paint()
-        ..color = Colors.black
-        ..strokeWidth = 3,
-    );
-    final gun = RRect.fromLTRBR(head.dx - 34, head.dy - 6, head.dx + 34, head.dy + 34, const Radius.circular(10));
-    c.drawRRect(gun, _white);
-    c.drawRRect(gun, _ink);
-    final handle = Path()
-      ..moveTo(head.dx + 20, head.dy + 2)
-      ..lineTo(head.dx + 78, head.dy - 22)
-      ..lineTo(head.dx + 86, head.dy - 6)
-      ..lineTo(head.dx + 30, head.dy + 20);
-    c.drawPath(handle, _white);
-    c.drawPath(handle, _ink);
-    c.drawRect(Rect.fromLTWH(head.dx - 16, head.dy + 26, 32, 6), _black);
-  }
-
-  @override
-  bool shouldRepaint(_ScanPainter old) => old.t != t;
-}
-
-class _ChipPainter extends CustomPainter {
-  _ChipPainter(this.t);
-  final double t;
-
-  @override
-  void paint(Canvas c, Size s) {
-    // Reader seen from above, contactless logo in the middle.
-    final reader = Rect.fromCenter(center: Offset(s.width / 2, s.height * .6), width: 150, height: 150);
-    final rr = RRect.fromRectAndRadius(reader, const Radius.circular(16));
-    c.drawRRect(rr, _black);
-    final pad = reader.deflate(14);
-    c.drawRRect(
-      RRect.fromRectAndRadius(pad, const Radius.circular(10)),
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
-    final logo = pad.center;
-    for (var i = 1; i <= 3; i++) {
-      c.drawArc(
-        Rect.fromCircle(center: logo.translate(-18, 0), radius: i * 11.0),
-        -pi / 4,
-        pi / 2,
-        false,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3,
-      );
-    }
-
-    // Card: slides down onto the pad (0–.45), rests (–.85), fades (–1).
-    final drop = Curves.easeOutCubic.transform((t / .45).clamp(0, 1));
-    final cardW = 170.0, cardH = 108.0;
-    final rest = Offset(s.width / 2 - cardW / 2, reader.center.dy - cardH / 2);
-    final from = rest.translate(70, -150);
-    final pos = Offset.lerp(from, rest, drop)!;
-    final alpha = t > .85 ? 1 - (t - .85) / .15 : 1.0;
-    c.saveLayer(Offset.zero & s, Paint()..color = Colors.white.withValues(alpha: alpha));
-    _card(c, pos & Size(cardW, cardH));
-    c.restore();
-
-    // Waves around the card once it is down.
-    if (t > .45 && t < .85) {
-      final k = ((t - .45) / .4 * 2) % 1;
-      for (final side in [-1, 1]) {
-        c.drawArc(
-          Rect.fromCircle(center: reader.center, radius: cardW / 2 + 10 + k * 26),
-          side < 0 ? pi - .5 : -.5,
-          1,
-          false,
-          Paint()
-            ..color = Colors.black.withValues(alpha: 1 - k)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 3,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ChipPainter old) => old.t != t;
 }
 
 /// "Lay the card on the reader" popup: keeps trying [read] until the chip

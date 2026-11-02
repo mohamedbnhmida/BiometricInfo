@@ -1,7 +1,7 @@
 name: biometric_info
 description: "Lecture des informations biométriques d'une carte (lecteur uTrust) et impression A4."
 publish_to: 'none'
-version: 1.2.4+9
+version: 1.2.5+10
 
 environment:
   sdk: ^3.8.0
@@ -29,6 +29,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/flags/
+    - assets/tutorial/
   fonts:
     - family: Cairo
       fonts:
