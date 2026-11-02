@@ -57,6 +57,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _docNo = TextEditingController();
+  // A douchette types into whatever has focus: keep it on the document field.
+  final _docFocus = FocusNode();
   DateTime? _birth, _expiry;
   bool _busy = false;
   String? _error;
@@ -88,6 +90,7 @@ class _HomePageState extends State<HomePage> {
       setState(() => _error = '${tr('Lecture impossible : posez la carte sur le lecteur et réessayez.')}\n($e)');
     } finally {
       setState(() => _busy = false);
+      _docFocus.requestFocus();
     }
   }
 
@@ -136,6 +139,9 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.only(bottom: 20),
         child: TextField(
           controller: c,
+          focusNode: _docFocus,
+          autofocus: true,
+          onEditingComplete: () {}, // Enter after each MRZ line must not drop focus
           style: const TextStyle(fontSize: 20),
           textCapitalization: TextCapitalization.characters,
           onSubmitted: (_) => _onDocSubmitted(),
@@ -148,6 +154,7 @@ class _HomePageState extends State<HomePage> {
       Padding(
         padding: const EdgeInsets.only(bottom: 20),
         child: InkWell(
+          canRequestFocus: false, // else the douchette's Enter opens the picker
           onTap: () async {
             final d = await showDatePicker(
               context: context,
@@ -157,6 +164,7 @@ class _HomePageState extends State<HomePage> {
               initialDatePickerMode: DatePickerMode.year,
             );
             if (d != null) setState(() => onPicked(d));
+            _docFocus.requestFocus();
           },
           child: InputDecorator(
             decoration: InputDecoration(
