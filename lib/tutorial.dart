@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -40,24 +39,18 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
 
   static Widget _img(String n, double w) => Image.asset('assets/tutorial/$n.png', width: w);
 
-  // Card 220×162; MRZ band = 70–93 % of its height.
-  static const _card = Rect.fromLTWH(30, 92, 220, 162);
+  // Card on the left, douchette on its right aiming at the MRZ band (70–93 % of the card height).
+  static const _card = Rect.fromLTWH(8, 60, 220, 162);
 
   Widget _scan(double t) {
     final sweep = Curves.easeInOut.transform(t < .5 ? t * 2 : 2 - t * 2);
-    final bob = sin(t * 2 * pi) * 3;
-    final window = Offset(186, 86 + bob); // scan window of the rotated douchette
     final mrzTop = _card.top + _card.height * .70, mrzBottom = _card.top + _card.height * .93;
     final y = mrzTop + (mrzBottom - mrzTop) * sweep;
     return Stack(
       children: [
         Positioned.fromRect(rect: _card, child: _img('card', _card.width)),
-        Positioned.fill(child: CustomPaint(painter: _LaserPainter(window, _card.left + 8, _card.right - 8, y))),
-        Positioned(
-          left: 176,
-          top: -20 + bob,
-          child: Transform.rotate(angle: -1.15, child: _img('scanner', 130)),
-        ),
+        Positioned.fill(child: CustomPaint(painter: _LaserPainter(_card.left + 8, _card.right - 8, y))),
+        Positioned(left: 230, top: 84, child: Transform.rotate(angle: -.35, child: _img('scanner', 116))),
       ],
     );
   }
@@ -87,8 +80,6 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
             ),
           ),
         ),
-        if (reading)
-          Positioned.fill(child: CustomPaint(painter: _WavesPainter(rest + const Offset(100, 74), (t - .38) / .52))),
         Opacity(
           opacity: fade,
           child: Stack(
@@ -125,55 +116,21 @@ class _TutorialAnimationState extends State<TutorialAnimation> with SingleTicker
 }
 
 class _LaserPainter extends CustomPainter {
-  _LaserPainter(this.from, this.left, this.right, this.y);
-  final Offset from;
+  _LaserPainter(this.left, this.right, this.y);
   final double left, right, y;
 
   @override
-  void paint(Canvas c, Size s) {
-    final fan = Path()
-      ..moveTo(from.dx - 6, from.dy)
-      ..lineTo(left, y)
-      ..lineTo(right, y)
-      ..lineTo(from.dx + 6, from.dy)
-      ..close();
-    c.drawPath(fan, Paint()..color = const Color(0x22FF1744));
-    c.drawLine(
-      Offset(left, y),
-      Offset(right, y),
-      Paint()
-        ..color = const Color(0xFFFF1744)
-        ..strokeWidth = 2.5
-        ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
-    );
-  }
+  void paint(Canvas c, Size s) => c.drawLine(
+    Offset(left, y),
+    Offset(right, y),
+    Paint()
+      ..color = const Color(0xFFFF1744)
+      ..strokeWidth = 2.5
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
+  );
 
   @override
-  bool shouldRepaint(_LaserPainter old) => old.y != y || old.from != from;
-}
-
-class _WavesPainter extends CustomPainter {
-  _WavesPainter(this.center, this.t);
-  final Offset center;
-  final double t;
-
-  @override
-  void paint(Canvas c, Size s) {
-    for (var i = 0; i < 2; i++) {
-      final k = (t * 2 + i / 2) % 1;
-      c.drawCircle(
-        center,
-        110 + k * 40,
-        Paint()
-          ..color = const Color(0xFF2E7D32).withValues(alpha: (1 - k) * .6)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_WavesPainter old) => old.t != t;
+  bool shouldRepaint(_LaserPainter old) => old.y != y;
 }
 
 /// "Lay the card on the reader" popup: keeps trying [read] until the chip
