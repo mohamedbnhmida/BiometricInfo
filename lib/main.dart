@@ -133,6 +133,7 @@ class _HomePageState extends State<HomePage> {
   /// Douchettes without an Enter suffix: parse once typing pauses.
   void _onDocChanged(String text) {
     _scanPause?.cancel();
+    if (_error != null) setState(() => _error = null); // new input: back to the empty state
     if (text.trim().length >= 25) _scanPause = Timer(const Duration(milliseconds: 400), _parseDocField);
   }
 
@@ -228,20 +229,34 @@ class _HomePageState extends State<HomePage> {
           icon: const Icon(Icons.print, size: 28, color: Colors.white),
           label: tr('Imprimer'),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 20),
-          Text(_error!, style: const TextStyle(fontSize: 17, color: Color(0xFFC62828))),
-        ],
       ],
     );
 
     final result = Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: _card == null
-            ? Center(
-                child: Text(tr('Aucune carte lue'), style: const TextStyle(fontSize: 20, color: Colors.black45)))
-            : SingleChildScrollView(child: _CardView(_card!)),
+        child: _card != null
+            ? SingleChildScrollView(child: _CardView(_card!))
+            : _error != null
+                ? _StateView(
+                    icon: const Icon(Icons.error_outline, size: 96, color: Color(0xFFC62828)),
+                    title: tr('Attention'),
+                    message: _error!,
+                    action: _BubbleButton(
+                      onPressed: _scan,
+                      icon: const Icon(Icons.document_scanner, size: 28, color: Colors.white),
+                      label: tr('Scanner la carte'),
+                    ),
+                  )
+                : _StateView(
+                    icon: const TutorialAnimation(chip: false),
+                    title: tr('Aucune carte lue'),
+                    steps: [
+                      tr('Scannez la MRZ avec la douchette, ou saisissez le numéro et les dates.'),
+                      tr('Posez la carte à plat sur le lecteur sans contact.'),
+                      tr('Vérifiez les informations puis imprimez la fiche.'),
+                    ],
+                  ),
       ),
     );
 
@@ -421,6 +436,50 @@ void _showFullScreen(BuildContext context, String label, Uint8List bytes, String
       ]),
     ),
   );
+}
+
+/// Right-hand panel when there is no card to show: an illustration, a title,
+/// then either a message (+ action) or the numbered steps.
+class _StateView extends StatelessWidget {
+  const _StateView({required this.icon, required this.title, this.message, this.action, this.steps = const []});
+  final Widget icon;
+  final String title;
+  final String? message;
+  final Widget? action;
+  final List<String> steps;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              icon,
+              const SizedBox(height: 24),
+              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+              if (message != null) ...[
+                const SizedBox(height: 12),
+                Text(message!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, color: Color(0xFFC62828))),
+              ],
+              for (final (i, s) in steps.indexed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Row(children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: const Color(0xFF1565C0),
+                      child: Text('${i + 1}',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(child: Text(s, style: const TextStyle(fontSize: 18))),
+                  ]),
+                ),
+              if (action != null) ...[const SizedBox(height: 28), action!],
+            ]),
+          ),
+        ),
+      );
 }
 
 const _countryKeys = {'Pays émetteur', 'Nationalité'};

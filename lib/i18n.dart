@@ -25,6 +25,19 @@ const _t = <String, List<String>>{
     'بشكل مسطّح فوق القارئ اللاتلامسي: تبدأ القراءة تلقائياً.',
   ],
   'Lecture réussie': ['Read successful', 'تمت القراءة بنجاح'],
+  'Attention': ['Attention', 'تنبيه'],
+  'Scannez la MRZ avec la douchette, ou saisissez le numéro et les dates.': [
+    'Scan the MRZ with the handheld scanner, or type the number and dates.',
+    'امسح منطقة MRZ بالماسح اليدوي، أو أدخل الرقم والتاريخين.',
+  ],
+  'Posez la carte à plat sur le lecteur sans contact.': [
+    'Lay the card flat on the contactless reader.',
+    'ضع البطاقة بشكل مسطّح على القارئ اللاتلامسي.',
+  ],
+  'Vérifiez les informations puis imprimez la fiche.': [
+    'Check the information, then print the sheet.',
+    'تحقّق من المعلومات ثم اطبع البطاقة.',
+  ],
   "Ce code n'est pas une MRZ (code QR ?) : visez les lignes MRZ en bas du document.": [
     'This code is not an MRZ (QR code?): aim at the MRZ lines at the bottom of the document.',
     'هذا الرمز ليس منطقة MRZ (رمز QR؟): وجّه الماسح إلى أسطر MRZ أسفل الوثيقة.',
