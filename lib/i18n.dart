@@ -19,6 +19,10 @@ const _t = <String, List<String>>{
     'امسح منطقة MRZ للوثيقة بالماسح اليدوي.',
   ],
   'Annuler': ['Cancel', 'إلغاء'],
+  "Ce code n'est pas une MRZ (code QR ?) : visez les lignes MRZ en bas du document.": [
+    'This code is not an MRZ (QR code?): aim at the MRZ lines at the bottom of the document.',
+    'هذا الرمز ليس منطقة MRZ (رمز QR؟): وجّه الماسح إلى أسطر MRZ أسفل الوثيقة.',
+  ],
   'Lire la carte': ['Read card', 'قراءة البطاقة'],
   'Lecture en cours…': ['Reading…', 'جارٍ القراءة…'],
   'Imprimer': ['Print', 'طباعة'],

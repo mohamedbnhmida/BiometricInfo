@@ -59,6 +59,7 @@ class _HomePageState extends State<HomePage> {
   final _docNo = TextEditingController();
   // A douchette types into whatever has focus: keep it on the document field.
   final _docFocus = FocusNode();
+  Timer? _scanPause;
   DateTime? _birth, _expiry;
   bool _busy = false;
   String? _error;
@@ -125,13 +126,37 @@ class _HomePageState extends State<HomePage> {
   /// A douchette typing straight into the field (popup not opened): each
   /// MRZ line ends with Enter and piles up here — parse it like the popup.
   void _onDocSubmitted() {
+    _scanPause?.cancel();
     final text = _docNo.text.trim();
     if (text.length < 25) {
       _read();
       return;
     }
     final mrz = MrzParser.parse(text);
-    if (mrz == null || !mrz.isValid) return; // wait for the next line
+    if (mrz != null && mrz.isValid) {
+      _fill(mrz);
+    } else {
+      _onDocChanged(text); // more MRZ lines may follow: decide after the pause
+    }
+  }
+
+  /// Douchettes without an Enter suffix: parse once typing pauses.
+  void _onDocChanged(String text) {
+    _scanPause?.cancel();
+    if (text.trim().length >= 25) _scanPause = Timer(const Duration(milliseconds: 400), _parseDocField);
+  }
+
+  void _parseDocField() {
+    final mrz = MrzParser.parse(_docNo.text.trim());
+    if (mrz == null || !mrz.isValid) {
+      // Typing paused on something that isn't an MRZ, e.g. the douchette
+      // caught the QR code: clear it so the next scan starts clean.
+      setState(() {
+        _docNo.clear();
+        _error = tr("Ce code n'est pas une MRZ (code QR ?) : visez les lignes MRZ en bas du document.");
+      });
+      return;
+    }
     _fill(mrz);
   }
 
@@ -145,6 +170,7 @@ class _HomePageState extends State<HomePage> {
           style: const TextStyle(fontSize: 20),
           textCapitalization: TextCapitalization.characters,
           onSubmitted: (_) => _onDocSubmitted(),
+          onChanged: _onDocChanged,
           decoration: InputDecoration(labelText: tr(label), labelStyle: const TextStyle(fontSize: 17)),
         ),
       );

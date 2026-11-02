@@ -1,7 +1,7 @@
 name: biometric_info
 description: "Lecture des informations biométriques d'une carte (lecteur uTrust) et impression A4."
 publish_to: 'none'
-version: 1.2.1+6
+version: 1.2.2+7
 
 environment:
   sdk: ^3.8.0

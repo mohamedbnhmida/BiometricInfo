@@ -22,7 +22,7 @@ class _MrzScanDialogState extends State<_MrzScanDialog> {
   final _ctrl = TextEditingController();
   String _acc = '';
   String _raw = ''; // shown when a scan doesn't parse, to see what the douchette sent
-  Timer? _accTimer;
+  Timer? _accTimer, _pause;
   bool _done = false;
 
   @override
@@ -65,6 +65,7 @@ class _MrzScanDialogState extends State<_MrzScanDialog> {
   @override
   void dispose() {
     _accTimer?.cancel();
+    _pause?.cancel();
     _node.dispose();
     _ctrl.dispose();
     super.dispose();
@@ -89,7 +90,15 @@ class _MrzScanDialogState extends State<_MrzScanDialog> {
                     controller: _ctrl,
                     autofocus: true,
                     textInputAction: TextInputAction.none,
-                    onSubmitted: (v) => _onLine(v.trim()),
+                    onSubmitted: (v) {
+                      _pause?.cancel();
+                      _onLine(v.trim());
+                    },
+                    // Douchettes without an Enter suffix: take the text once typing pauses.
+                    onChanged: (_) {
+                      _pause?.cancel();
+                      _pause = Timer(const Duration(milliseconds: 400), () => _onLine(_ctrl.text.trim()));
+                    },
                   ),
                 ),
               ),
@@ -103,6 +112,9 @@ class _MrzScanDialogState extends State<_MrzScanDialog> {
               const SizedBox(width: 160, child: LinearProgressIndicator(minHeight: 3)),
               if (_raw.isNotEmpty) ...[
                 const SizedBox(height: 16),
+                Text(tr("Ce code n'est pas une MRZ (code QR ?) : visez les lignes MRZ en bas du document."),
+                    textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Color(0xFFC62828))),
+                const SizedBox(height: 8),
                 SelectableText(_raw, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.black54)),
               ],
               const SizedBox(height: 28),
